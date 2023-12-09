@@ -1,0 +1,123 @@
+#include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+#define TRUE 1
+#define FALSE 0
+
+int buffer[10];
+pthread_mutex_t mutex;
+pthread_cond_t condVarFullFirstHalf;
+pthread_cond_t condVarFullSecondHalf;
+pthread_cond_t condVarEmpty;
+int bufferFirstHalf = FALSE;
+int bufferSecondHalf = FALSE;
+
+void* nit0(void* arg)
+{
+    int i;
+    while (1)
+    {
+        pthread_mutex_lock(&mutex);
+        while (bufferFirstHalf)
+            pthread_cond_wait(&condVarEmpty, &mutex);
+
+        for (i = 0; i < 9; i += 2)
+        {
+            buffer[i] = rand() % 300;
+            printf("Nit0 upisala vrednost %d na %d. poziciji\n", buffer[i], i);
+        }
+
+        bufferFirstHalf = TRUE;
+        pthread_cond_signal(&condVarFullFirstHalf);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(rand() % 3);
+    }
+    return NULL;
+}
+
+void* nit1(void* arg)
+{
+    int i;
+    while (1)
+    {
+        pthread_mutex_lock(&mutex);
+        while (bufferSecondHalf)
+            pthread_cond_wait(&condVarEmpty, &mutex);
+
+        for (i = 1; i <= 9; i += 2)
+        {
+            buffer[i] = rand() % 200 + 300;
+            printf("Nit1 upisala vrednost %d na %d. poziciji\n", buffer[i], i);
+        }
+
+        bufferSecondHalf = TRUE;
+        pthread_cond_signal(&condVarFullSecondHalf);
+        pthread_mutex_unlock(&mutex);
+
+        sleep(rand() % 4);
+    }
+    return NULL;
+}
+
+void* sabiranjeNit(void* arg)
+{
+    int i, sum;
+    for (i = 0; i < 5; i++)
+    {
+        pthread_mutex_lock(&mutex);
+        while (!bufferFirstHalf || !bufferSecondHalf)
+            pthread_cond_wait(&condVarFullFirstHalf, &mutex);
+
+        int j;
+        sum = 0;
+        for (j = 0; j <= 9; j++)
+        {
+            sum += buffer[j];
+        }
+
+        if (sum > 2000)
+        {
+            printf("Zbir brojeva je veci od 2000: %d\n", sum);
+        }
+        else
+        {
+            printf("Zbir brojeva nije veci od 2000: %d\n", sum);
+        }
+
+        bufferFirstHalf = FALSE;
+        bufferSecondHalf = FALSE;
+
+        pthread_cond_signal(&condVarEmpty);
+        pthread_mutex_unlock(&mutex);
+    }
+    return NULL;
+}
+
+int main()
+{
+    pthread_t threadID, threadID0, sabiranjeID;
+    int i;
+
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&condVarEmpty, NULL);
+    pthread_cond_init(&condVarFullFirstHalf, NULL);
+    pthread_cond_init(&condVarFullSecondHalf, NULL);
+
+    pthread_create(&threadID, NULL, nit0, NULL);
+    pthread_create(&threadID0, NULL, nit1, NULL);
+    pthread_create(&sabiranjeID, NULL, sabiranjeNit, NULL);
+
+    pthread_join(threadID, NULL);
+    pthread_join(threadID0, NULL);
+    pthread_join(sabiranjeID, NULL);
+
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&condVarEmpty);
+    pthread_cond_destroy(&condVarFullFirstHalf);
+    pthread_cond_destroy(&condVarFullSecondHalf);
+
+    return 0;
+}
