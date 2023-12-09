@@ -1,0 +1,78 @@
+/*Zadatak 1. Korišćenjem programskog jezika C napisati Linux progam koji sadrži bafer u koji se može smestiti 10 integer brojeva. Jedna zasebna nit, kreirana prilikom startovanja programa, periodično generiše 10 slučajnih brojeva (u opsegu od 0 do 199) i upisuje ih u ovaj bafer. Kada se u baferu nađe nova grupa brojeva, glavna nit (main funkcija) treba da odredi da li je zbir tih brojeva veći od 800 i odštampa adekvatnu poruku na standardnom izlazu. Ovaj postupak generisanja 10 brojeva i ispitivanje vrednosti njihovog zbira treba da se ponavlja sve dok sračunat zbir ne prede 1000. Adekvatno sinhronizovati rad niti koja generiše brojeve i glavne niti koja proverava njihov zbir. (25 poena)*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#define N 10
+#define TRUE 1
+#define FALSE 0
+
+pthread_mutex_t mutex;
+pthread_cond_t full,empty;
+
+int buffer[N];
+int fullBuff=FALSE;
+
+void* nit0(void* args)
+{
+	int i;
+	while(1)
+	{
+		pthread_mutex_lock(&mutex);	
+		while(fullBuff==TRUE)
+			pthread_cond_wait(&empty,&mutex);
+		for(i=0;i<10;i++)
+		{
+			buffer[i] = rand() % 200;
+			printf("Nit 0 je upisala %d na %d. poziciji. \n",buffer[i],i);
+		}
+		fullBuff=TRUE;
+		pthread_cond_signal(&full);
+		pthread_mutex_unlock(&mutex);
+		sleep(rand()%3);
+	}
+}
+void* sabiranje(void* args)
+{
+	int suma=0,i;
+	
+	while(suma<=1000)
+	{
+		pthread_mutex_lock(&mutex);
+
+		while (fullBuff==FALSE)
+			pthread_cond_wait(&full,&mutex);
+		for(i=0;i<N;i++)
+		{
+			suma+=buffer[i];
+			printf("Suma je %d. \n",suma);
+			if(suma>1000)
+				break;
+		}
+		fullBuff=FALSE;
+		pthread_cond_signal(&empty);
+		pthread_mutex_unlock(&mutex);
+	}
+	printf("Suma je %d i veca je od 1000. \n",suma);
+	
+}
+int main()
+{
+	pthread_t t0,tSab;//nit za sabiranje
+	
+	pthread_mutex_init(&mutex,NULL);
+	pthread_cond_init(&empty,NULL);
+	pthread_cond_init(&full,NULL);
+	
+	pthread_create(&t0,NULL,(void*) &nit0,NULL);//mora void* iako je nit0 tipa void*
+	pthread_create(&tSab,NULL,(void*) &sabiranje,NULL);
+	
+	pthread_join(t0,NULL);
+	pthread_join(tSab,NULL);
+	
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&empty);
+	pthread_cond_destroy(&full);
+	
+	return 0;
+}
