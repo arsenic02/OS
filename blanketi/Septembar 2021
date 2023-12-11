@@ -1,0 +1,48 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#define N 10
+int main()
+{
+	srand(time(NULL));
+	int pd1[2];
+	int i;
+	if(pipe(pd1)!=0)
+	{
+		perror("Greska pri kreiranjju datavoda!\n");
+		exit(1);
+	}
+	if(fork()!=0)
+	{
+		close(pd1[0]);
+		int buffer[N];
+		printf("Proces roditelj je generisao brojeve: \n");
+		for(i=0;i<N;i++)
+		{
+			buffer[i]=rand()%100;
+			printf("%d ",buffer[i]);
+		}
+		printf("\n");
+		write(pd1[1],buffer,N*sizeof(int));
+		wait(NULL);
+		
+		close(pd1[1]);
+		return 0;
+	}
+	else
+	{
+		close(pd1[1]);
+		int buffer[N];
+		read(pd1[0],buffer,N*sizeof(int));
+		printf("Proces dete stampa: \n");
+		for(i=0;i<N;i++)
+		{
+			if(buffer[i]%2==0)
+				printf("PARAN BROJ ");
+			else
+				printf("%d ",buffer[i]);
+		}
+		close(pd1[0]);
+		return 0;
+	}
+}
