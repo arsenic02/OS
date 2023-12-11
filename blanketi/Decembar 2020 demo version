@@ -48,7 +48,10 @@ int main()
 		else
 			write(pd13[1],buffer,strlen(buffer)+1);
 		
-		if(pid2 !=0 && suma%2==0)
+		wait(NULL);
+				
+	}
+	else if (pid2 !=0 )
 		{
 			char buffer[N+1];
 			close(pd13[1]);
@@ -64,6 +67,7 @@ int main()
 			}
 			fprintf(f,"%s\n",buffer);
 			fclose(f);
+			printf("Proces 2 je upisao niz karaktera u KARAKTERI.txt");
 			return 0;
 			//slanje drugom proces
 			//upis u datoteku KARAKTERI.txt
@@ -80,7 +84,5 @@ int main()
 				printf("%c ",buffer[i]);	
 			//slanje trecem procesu
 			//stampa na izlazu
-		}
-		wait(NULL);
-	}	
+		}	
 }
