@@ -1,0 +1,63 @@
+/*
+KOriscenjem programskog jezika C kreirati Linux program koji kopira datoteku cije se ime prosledjuje kao prvi argument komandne linije tako sto kreira dodatni proces. Gavni poroces iz izvorisne datoteke cita N bajtova (N se programu prosledjuje kao drugi argument komanden linije) i koriscenjem datavoda procitane bajtove prosledjuje drugom procesu koji te bajtove upisuje u  odredisnu datoteku cije se ime prosledjuje kao treci argument komandne linije. Ova procedura se ponavlja dok se ne iskopira kompletna datoteka.
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#define BUFFER_SIZE 1024
+
+int main(int argc, char *argv[]) {
+    if (argc != 4) {
+        fprintf(stderr, "Upotreba: %s izvor_datoteka broj_bajtova odrediste_datoteka\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    char *izvor_datoteka = argv[1];
+    int broj_bajtova = atoi(argv[2]);
+    char *odrediste_datoteka = argv[3];
+
+    FILE *izvor = fopen(izvor_datoteka, "rb");
+    if (izvor == NULL) {
+        perror("Greska prilikom otvaranja izvorne datoteke");
+        exit(EXIT_FAILURE);
+    }
+
+    FILE *odrediste = fopen(odrediste_datoteka, "wb");
+    if (odrediste == NULL) {
+        perror("Greska prilikom otvaranja odredisne datoteke");
+        fclose(izvor);
+        exit(EXIT_FAILURE);
+    }
+
+    char buffer[BUFFER_SIZE];
+    size_t procitano;
+
+    while ((procitano = fread(buffer, 1, sizeof(buffer), izvor)) > 0) {
+        // Kreirajte novi proces
+        pid_t child_pid = fork();
+
+        if (child_pid == -1) {
+            perror("Greska prilikom fork-a");
+            fclose(izvor);
+            fclose(odrediste);
+            exit(EXIT_FAILURE);
+        }
+
+        if (child_pid == 0) { // Proces dete
+            // Upisivanje procitanih bajtova u odredisnu datoteku
+            fwrite(buffer, 1, procitano, odrediste);
+            fclose(odrediste);
+            fclose(izvor);
+            exit(EXIT_SUCCESS);
+        } else { // Proces roditelj
+            // Čekajte da se završi proces dete
+            wait(NULL);
+        }
+    }
+
+    fclose(odrediste);
+    fclose(izvor);
+
+    return 0;
+}
