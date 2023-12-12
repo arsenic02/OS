@@ -1,4 +1,7 @@
-//1.
+/*
+1. Koriscenjem programskog jezika C napisati Linux program koji u glavnoj niti od korisnika ocekuje da unese ceo broj. Zatim startuje drugu nit, prosledjuje joj uneti broj, a druga nit odbrojava (i stampa na ekranu brojeve kako odbrojava) od unetog broja do0 sa pauzom od 1 sekunde izmedju 2 uzastopna broja. Zatim u glavnoj niti korisnik ponovo unosi ceo broj i ovaj proces odbrojavanja i unosa broja se postavlja sve dok korisnik ne unes "KRAJ".
+*/
+//NE RADI NAJBOLJE
 #include <stdio.h>
 #include <stdlib.h>
 #include  <pthread.h>
@@ -8,14 +11,17 @@
 char broj[5];
 pthread_mutex_t mutex;
 pthread_cond_t empty,full;
-bool emptyNumber=false;
+bool emptyNumber=false,flag=true;
 
 void* nit2(void* args)
 {
+	while(flag)
+	{
 	pthread_mutex_lock(&mutex);
 	while(emptyNumber)
 		pthread_cond_wait(&full,&mutex);
-	
+	if(!flag)
+		break;
 	int i;
 	printf("Nit2 odbrojava ");
 	for(i=atoi(broj);i>=0;i--)
@@ -25,10 +31,10 @@ void* nit2(void* args)
 		sleep(1);
 	}
 	printf("\n");
-	pthread_cond_signal(&empty,&mutex);
 	emptyNumber=true;
+	pthread_cond_signal(&empty);
 	pthread_mutex_unlock(&mutex);
-	
+	}
 	
 }
 int main()
@@ -38,16 +44,21 @@ int main()
 	pthread_cond_init(&empty,&mutex);
 	pthread_cond_init(&full,&mutex);
 	pthread_create(&t,NULL,(void*) nit2,NULL);
-	char chars[5];
-	pthread_mutex_lock(&mutex);
-	while(true)
+	
+	while(flag)
 	{
-		printf("Unesite broj:  ");
+		pthread_mutex_lock(&mutex);
+		while(!emptyNumber)
+			pthread_cond_wait(&empty,&mutex);
+		printf("Unesite broj ili KRAJ:  ");
 		scanf("%s ",broj);
-		chars=gets
-		
+		if(strcmp(broj,"KRAJ")==0)
+			flag=false;
+		emptyNumber=false;
+		pthread_cond_signal(&full);
+		pthread_mutex_unlock(&mutex);
 	}
-	pthread_mutex_unlock(&mutex);
+	
 	
 	pthread_join(t,NULL);
 	pthread_mutex_destroy(&mutex);
