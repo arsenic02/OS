@@ -1,0 +1,56 @@
+//1.
+#include <stdio.h>
+#include <stdlib.h>
+#include  <pthread.h>
+#include  <stdbool.h>
+#include <string.h>
+ 
+char broj[5];
+pthread_mutex_t mutex;
+pthread_cond_t empty,full;
+bool emptyNumber=false;
+
+void* nit2(void* args)
+{
+	pthread_mutex_lock(&mutex);
+	while(emptyNumber)
+		pthread_cond_wait(&full,&mutex);
+	
+	int i;
+	printf("Nit2 odbrojava ");
+	for(i=atoi(broj);i>=0;i--)
+	{
+		printf("%d ",i);
+		fflush(stdout);
+		sleep(1);
+	}
+	printf("\n");
+	pthread_cond_signal(&empty,&mutex);
+	emptyNumber=true;
+	pthread_mutex_unlock(&mutex);
+	
+	
+}
+int main()
+{
+	pthread_t t;
+	pthread_mutex_init(&mutex,NULL);
+	pthread_cond_init(&empty,&mutex);
+	pthread_cond_init(&full,&mutex);
+	pthread_create(&t,NULL,(void*) nit2,NULL);
+	char chars[5];
+	pthread_mutex_lock(&mutex);
+	while(true)
+	{
+		printf("Unesite broj:  ");
+		scanf("%s ",broj);
+		chars=gets
+		
+	}
+	pthread_mutex_unlock(&mutex);
+	
+	pthread_join(t,NULL);
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&full);
+	pthread_cond_destroy(&empty);
+}
