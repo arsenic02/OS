@@ -1,5 +1,91 @@
 /*
-KOriscenjem programskog jezika C kreirati Linux program koji kopira datoteku cije se ime prosledjuje kao prvi argument komandne linije tako sto kreira dodatni proces. Gavni poroces iz izvorisne datoteke cita N bajtova (N se programu prosledjuje kao drugi argument komanden linije) i koriscenjem datavoda procitane bajtove prosledjuje drugom procesu koji te bajtove upisuje u  odredisnu datoteku cije se ime prosledjuje kao treci argument komandne linije. Ova procedura se ponavlja dok se ne iskopira kompletna datoteka.
+1.  Koriscenjem programskog jezika C napisati  Linux program koji odmah kreira dodatnu radnu nit a zatim u glavnoj niti od korisnika ocekuje da unese ceo broj. Glavna nit prosledjuje drugoj (radnoj) niti uneti broj, a druga nit odbrojjava unazad(stampa na ekranu kako odbrojava) od unetog broja do 0 sa pauzom od 3 sekunde izmedju 2 uzastopna broja. Zatim u glavnoj niti koirsnik ponovo unosi ceo broj i ovaj proces odbrojavanja i unosa broja s ponavlja sve dok korisnik ne unese "KRAJ". Sinhronizaciju rada niti obezbediti semaforima.
+*/
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <pthread.h>
+#include <string.h>
+#include <semaphore.h>
+
+char nums[5];
+int fullNum = 0, run = 1;
+sem_t mutex, empty, full;
+
+void* nit2(void* args)
+{
+    while (run)
+    {
+        sem_wait(&empty);//cekanje da postoji neki broj za odbrojavanje
+        sem_wait(&mutex);//ulazak u kriticnu situaciju
+
+        if (!run)
+        {
+            sem_post(&mutex);//ako program zavrsava, oslobodi mutex i prekini nit
+            break;
+        }
+
+        printf("\nNit odbrojava: ");
+        for (int i = atoi(nums); i >= 0; i--)
+        {
+            printf("%d ", i);
+            sleep(3);
+        }
+
+        fullNum = 0;
+        sem_post(&mutex);//izlazak iz kriticne situacije
+        sem_post(&full);//signalizacija da je odbrojavanje zavrseno
+    }
+
+    pthread_exit(NULL);
+}
+
+int main()
+{
+    pthread_t t;
+
+    sem_init(&mutex, 0, 1);
+    sem_init(&empty, 0, 0);
+    sem_init(&full, 0, 0); // Postavljanje full na 0 jer je prvobitno prazan.
+
+    pthread_create(&t, NULL, nit2, NULL);
+
+    do
+    {
+        printf("\nUnesi ceo broj: ");
+        scanf("%s", nums);
+
+        sem_wait(&mutex);//ulazak u kriticnu sekciju
+
+        if (strcmp(nums, "KRAJ") == 0)
+        {
+            run = 0;
+        }
+        else
+        {
+            fullNum = 1;
+            sem_post(&mutex);//izlazak iz kriticne sekcije
+            sem_post(&empty);//Signalizacija da postoji novi broj za odbrojavanje.
+            sem_wait(&full);//cekanje da se zavrsi odbrojavanje
+        }
+
+        sem_post(&mutex);//izlazak iz kriticne situacije
+
+    } while (run);
+
+    pthread_join(t, NULL);
+
+    sem_destroy(&mutex);
+    sem_destroy(&empty);
+    sem_destroy(&full);
+
+    return 0;
+}
+
+
+
+/*
+2.KOriscenjem programskog jezika C kreirati Linux program koji kopira datoteku cije se ime prosledjuje kao prvi argument komandne linije tako sto kreira dodatni proces. Gavni poroces iz izvorisne datoteke cita N bajtova (N se programu prosledjuje kao drugi argument komanden linije) i koriscenjem datavoda procitane bajtove prosledjuje drugom procesu koji te bajtove upisuje u  odredisnu datoteku cije se ime prosledjuje kao treci argument komandne linije. Ova procedura se ponavlja dok se ne iskopira kompletna datoteka.
 */
 #include <stdio.h>
 #include <stdlib.h>
