@@ -1,6 +1,63 @@
+//1.
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <stdbool.h>
+int broj;
+pthread_mutex_t mut;
+pthread_cond_t full,empty;
+bool isEmpty=true,run=true;
 
+void* nit()
+{
+	while(run)
+	{
+		pthread_mutex_lock(&mut);
+		while(isEmpty)
+			pthread_cond_wait(&full,&mut);
+		if(!run)
+			break;
+		for(int i=0;i<broj;i++)//odbrojavanje
+		{
+			printf("%d ",i);
+			fflush(stdout);
+			sleep(3);
+		}
+		isEmpty=true;
+		pthread_cond_signal(&empty);
+		pthread_mutex_unlock(&mut);
+		
+		
+	}
+}
+
+int main()
+{
+	pthread_mutex_init(&mut,NULL);
+	pthread_cond_init(&full,NULL);
+	pthread_cond_init(&empty,NULL);
+	pthread_t t;
+	pthread_create(&t,NULL,nit,NULL);
+
+	while(run)
+	{
+		pthread_mutex_lock(&mut);
+		while(!isEmpty)
+			pthread_cond_wait(&empty,&mut);
+		printf("Unesi broj: ");
+		scanf("%d",&broj);
+		if(broj==99)
+			run=false;
+		isEmpty=false;
+		pthread_cond_signal(&full);
+		pthread_mutex_unlock(&mut);
+	}
+	
+	
+}
+/////////////////////////////////////////////
 /*
-Koriscenjem programskog jeizka C kreirati linux program koji kreira dodatni proces sa koijm komunicira dvosmerno koriscenjem datavoda. Roditeljaski proces generise 10 lsucajnih brojeva u opsegu od 200 do 299 i salje ih putme datavoda proccesu detetu. Proces dete roditeljskom procesu koriscenjem datavoda vraca samo brojeve deljive sa 3 i to uvecane za 25. Roditeljski proces tako primljene brojeve od procesa deteta treba da odstampa na ekranu.
+2.Koriscenjem programskog jeizka C kreirati linux program koji kreira dodatni proces sa koijm komunicira dvosmerno koriscenjem datavoda. Roditeljaski proces generise 10 lsucajnih brojeva u opsegu od 200 do 299 i salje ih putme datavoda proccesu detetu. Proces dete roditeljskom procesu koriscenjem datavoda vraca samo brojeve deljive sa 3 i to uvecane za 25. Roditeljski proces tako primljene brojeve od procesa deteta treba da odstampa na ekranu.
 */
 
 #include <stdio.h>
