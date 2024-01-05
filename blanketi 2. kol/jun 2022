@@ -1,5 +1,5 @@
 /*
-3.
+3. dole je verzija koja radi (chatgpt)
 Koriscenjem programskog jezika C napisati Linux program koji kreira dodatni proces dete. Ova 2 procesa komuniciraju koriscenjem jednog reda poruka. prvi proces sa tastature cita cele visecifrene brojeve i salje ih drugom procesu koristeci
 red poruka. Drugi proces treba da sabere cifre primljenog broja i da ih odstampa na standardnom izlazu. Ovaj postupak se ponavlja 10 puta
 */
@@ -70,5 +70,81 @@ int main()
         wait(NULL);
         msgctl(RED_PORUKA,IPC_RMID,0);
     }
+    return 0;
+}
+///////////////////////////////////////////
+//verzija koja radi(chatgpt)
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+// Define the message structure
+struct msg_buffer {
+    long msg_type;
+    char msg_text[100];
+};
+
+int main() {
+    key_t key;
+    int msgid;
+
+    // Generate a unique key
+    key = ftok("progfile", 65);
+
+    // Create a message queue and get its id
+    msgid = msgget(key, 0666 | IPC_CREAT);
+
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {
+        // Parent process
+        struct msg_buffer message;
+
+        for (int i = 0; i < 10; ++i) {
+            // Read a number from the user
+            printf("Enter a multi-digit number: ");
+            fgets(message.msg_text, sizeof(message.msg_text), stdin);
+
+            // Set the message type to 1
+            message.msg_type = 1;
+
+            // Send the message to the message queue
+            msgsnd(msgid, &message, sizeof(message), 0);
+        }
+
+        // Wait for the child process to finish
+        wait(NULL);
+
+        // Delete the message queue
+        msgctl(msgid, IPC_RMID, NULL);
+    } else {
+        // Child process
+        struct msg_buffer message;
+
+        for (int i = 0; i < 10; ++i) {
+            // Receive the message from the message queue
+            msgrcv(msgid, &message, sizeof(message), 1, 0);
+
+            // Calculate the sum of digits
+            int sum = 0;
+            for (int j = 0; message.msg_text[j] != '\0'; ++j) {
+                if (message.msg_text[j] >= '0' && message.msg_text[j] <= '9') {
+                    sum += message.msg_text[j] - '0';
+                }
+            }
+
+            // Print the sum
+            printf("Sum of digits: %d\n", sum);
+        }
+    }
+
     return 0;
 }
