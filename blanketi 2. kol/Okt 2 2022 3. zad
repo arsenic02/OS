@@ -1,0 +1,97 @@
+/*
+Koriscenjem programskog jezika C kreirati 3 Linux procesa koji komuniciraju koriscenjem rredova poruka. prvi proces prvo ucitava cifru, pa string sa tastature. ukoliko je procitana cifra jednaka 1, koriscenjem 
+redova poruka procitani string salje drugom procesu a ukoliko je uneta cifra jednaka 2, poruku salje trecem procesu. Drugi  proces ispisuje svaku primljenu poruku i njen broj karaktera.
+Treci proces primljenu poruku pretvara u velika slova a zatim je ispisuje. Komunikacija se prekida i  procesi izlaze kada korisnik unese cifu razlicitu od 1 ili 2.
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <unistd.h>
+
+#define MAX_STRING_SIZE 100
+
+struct msg_buffer {
+    long msg_type;
+    char msg_text[MAX_STRING_SIZE];
+};
+
+int main() {
+   // key_t key = ftok("/tmp", 'a');
+    int msg_id = msgget(10001, 0666 | IPC_CREAT);
+
+    if (msg_id == -1) {
+        perror("msgget");
+        exit(EXIT_FAILURE);
+    }
+
+    int pid1, pid2, pid3;
+
+    pid1 = fork();
+
+    if (pid1 == 0) {
+        // Prvi proces
+        struct msg_buffer message;
+        do {
+            printf("Unesite cifru (1 ili 2): ");
+            scanf("%ld", &message.msg_type);
+
+            if (message.msg_type == 1 || message.msg_type == 2) {
+                printf("Unesite string: ");
+                scanf("%s", message.msg_text);
+
+                // Slanje poruke drugom ili trecem procesu
+                msgsnd(msg_id, &message, sizeof(message), 0);
+            } else {
+                printf("Pogresan unos. Izlazim...\n");
+            }
+        } while (message.msg_type == 1 || message.msg_type == 2);
+
+        exit(EXIT_SUCCESS);
+    } else {
+        pid2 = fork();
+
+        if (pid2 == 0) {
+            // Drugi proces
+            struct msg_buffer message;
+            
+            msgrcv(msg_id, &message, sizeof(message), 1, 0);
+
+            printf("Primljena poruka: %s\n", message.msg_text);
+            printf("Broj karaktera: %ld\n", strlen(message.msg_text));
+
+            exit(EXIT_SUCCESS);
+        } else {
+            pid3 = fork();
+
+            if (pid3 == 0) {
+                // Treci proces
+                struct msg_buffer message;
+                msgrcv(msg_id, &message, sizeof(message), 2, 0);//moze i 0 umesto 2,isto radi
+
+                // Pretvaranje poruke u velika slova
+                for (int i = 0; message.msg_text[i]; i++) {
+                    message.msg_text[i] = toupper(message.msg_text[i]);
+                }
+
+                printf("Pretvorena poruka: %s\n", message.msg_text);
+
+                exit(1);//isto kao EXIT_STATUS
+            } else {
+                // Roditelj proces
+                waitpid(pid1, NULL, 0);
+                waitpid(pid2, NULL, 0);
+                waitpid(pid3, NULL, 0);
+
+                // Brisanje reda poruka
+                msgctl(msg_id, IPC_RMID, NULL);
+
+                printf("Procesi zavrseni.\n");
+                exit(EXIT_SUCCESS);
+            }
+        }
+    }
+}
