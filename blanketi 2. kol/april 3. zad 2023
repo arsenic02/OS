@@ -1,0 +1,89 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ipc.h>
+#include <sys/types.h>
+#include <sys/msg.h>
+#include <time.h>
+#include <sys/wait.h>
+#include <sys/shm.h>
+
+#define RED_PORUKA 10001
+#define MAX_PORUKA 255
+struct poruka
+{
+    long tip;
+    char tekst[MAX_PORUKA];
+};
+
+int main()
+{
+    int pid,redid,count;
+     
+    int msgid=msgget(RED_PORUKA,0666 | IPC_CREAT);
+   // int shmid = shmget(IPC_PRIVATE, sizeof(int), IPC_CREAT | 0666);
+    /*pid=fork();
+    if(pid<0)
+    {
+        printf("Greska pri kreiranju procesa!");
+        exit(1);
+    }*/
+     //count=0;
+    /* int *count = (int *)shmat(shmid, NULL, 0);
+    *count = NULL;*/
+    if(fork()==0)
+    {
+        //proces dete
+        while (1)
+        {
+            struct poruka bafer;
+            msgrcv(msgid,&bafer,sizeof(bafer),0,0);
+
+            if (atoi(bafer.tekst) == 0)
+            {
+                printf("\nProces dete je primilo %d brojeva od roditelja\n", count);
+                exit(1);
+            }
+            count++;
+            int broj ;
+            broj = atoi(bafer.tekst);
+            printf("%c ", (char)broj);
+            //printf("%s ",bafer.tekst);
+        }
+        //printf("\nProces dete je primilo %d brojeva od roditelja\n",count);
+        //exit(1);
+    }
+    else
+    {
+        printf("Unesi brojeve od 1 do 127 (0 za kraj): \n");
+        int broj;
+        struct poruka bafer;
+        while(1)
+        {
+            scanf("%d",&broj);
+            //broj=rand()%128;
+           // struct poruka bafer;
+            if(broj == 0)
+            {
+                sprintf(bafer.tekst, "%d", broj);
+                bafer.tip = 1;
+                msgsnd(msgid, &bafer, sizeof(bafer), 0);
+                wait(NULL);
+                break;
+                //exit(1);
+            }
+            else if (broj > 0 && broj <= 127)
+            {
+                sprintf(bafer.tekst,"%d",broj);
+                bafer.tip = 1;
+                msgsnd(msgid, &bafer, sizeof(bafer), 0);
+            }
+            else
+            {
+                printf("Broj mora biti u intervalu 1-127");
+            }
+           
+        }
+        
+    }
+    return 0;
+}
