@@ -1,0 +1,73 @@
+/*
+Koriscenjem programskog jezika C napisati Linux program koji kreira dodatni proces dete. Ova 2 procesa komuniciraju koriscenjem jednog reda poruka. prvi proces sa tastature cita cele visecifrene brojeve i salje ih drugom procesu koristeci
+red poruka. Drugi proces treba da sabere cifre primljenog broja i da ih odstampa na standardnom izlazu. Ovaj postupak se ponavlja 10 puta
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/ipc.h>
+#include <sys/types.h>
+#include <sys/msg.h>
+#include <sys/wait.h>
+#include <time.h>
+
+#define RED_PORUKA 10001
+#define MAX_PORUKA 10
+
+struct poruka
+{
+    long tip;
+    char tekst[MAX_PORUKA];
+};
+int main()
+{
+    printf("Unesi 10 brojeva: \n");
+
+    int msgid = msgget(RED_PORUKA, 0666 | IPC_CREAT);
+    int pid, i, broj, cifra, sumaCifara;
+
+    pid = fork();
+
+    if (pid == 0)
+    { // dete
+        
+        for (i = 0; i < MAX_PORUKA; i++)
+        {
+            struct poruka bafer;
+            msgrcv(msgid, &bafer, sizeof(bafer), 1, 0);//umesto 1 bila 0
+            broj = atoi(bafer.tekst);
+
+            printf("\nDete primilo %d\n", broj);
+            sumaCifara = 0;
+
+            for (i = broj; i > 0; i /= 10)
+            {
+                cifra = i % 10;
+                sumaCifara += cifra;
+            }
+            printf("\n Dete stampa zbir cifara %d od broja %d\n", sumaCifara, broj);
+        }
+
+        //exit(1);
+    }
+    else
+    { // roditelj
+       
+
+        for (i = 0; i < MAX_PORUKA; i++)
+        {
+             struct poruka bafer;
+            scanf("%d", &broj);
+            sprintf(bafer.tekst, "%d", broj);
+            bafer.tip = 1;
+
+            msgsnd(msgid, &bafer, sizeof(bafer), 0);
+            printf("\nRoditelj poslao %d\n", broj);
+
+            
+            // break;
+        }
+        wait(NULL);
+        msgctl(RED_PORUKA,IPC_RMID,0);
+    }
+    return 0;
+}
