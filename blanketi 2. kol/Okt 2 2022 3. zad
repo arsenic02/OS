@@ -3,6 +3,9 @@ Koriscenjem programskog jezika C kreirati 3 Linux procesa koji komuniciraju kori
 redova poruka procitani string salje drugom procesu a ukoliko je uneta cifra jednaka 2, poruku salje trecem procesu. Drugi  proces ispisuje svaku primljenu poruku i njen broj karaktera.
 Treci proces primljenu poruku pretvara u velika slova a zatim je ispisuje. Komunikacija se prekida i  procesi izlaze kada korisnik unese cifu razlicitu od 1 ili 2.
 */
+/*
+kada se pozove 3. proces nakon njega samo se unos obavalja, ali nema nikakave komunikacije
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
