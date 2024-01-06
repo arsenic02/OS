@@ -1,0 +1,116 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <dirent.h>
+#include <string.h>
+#include <stdlib.h>
+#define VELICINA 255
+
+int main(int argc, char *argv[])
+{
+    char dirname1[VELICINA];
+    char dirname2[VELICINA];
+
+    char path1[VELICINA]; // ili mozda samo jedan path
+    char path2[VELICINA];
+
+    struct stat statbuf1;
+    struct stat statbuf2;
+
+    DIR *dp1;
+    DIR *dp2;
+
+    struct dirent *dirp1;
+    struct dirent *dirp2;
+
+    if (argc < 3)
+    {
+        printf("Neodgovarajuci broj argumenata!\n");
+        exit(-1);
+    }
+    strcpy(dirname1, argv[1]);
+    if (stat(dirname1, &statbuf1) < 0)
+    {
+        printf("Doslo je do greske pri ucitavanju putanje prvog direktorijuma!\n");
+        exit(-1);
+    }
+
+    strcpy(dirname2, argv[2]);
+    if (stat(dirname2, &statbuf2) < 0)
+    {
+        printf("Doslo je do greske pri ucitavanju putanje drugog direktorijuma!\n");
+        exit(-1);
+    }
+
+    if (!S_ISDIR(statbuf1.st_mode))
+    {
+        printf("Uneti argument ne predstavlja putanju do prvog direktorijuma!\n");
+        exit(-1);
+    }
+
+    if (!S_ISDIR(statbuf2.st_mode))
+    {
+        printf("Uneti argument ne predstavlja putanju do drugog direktorijuma!\n");
+        exit(-1);
+    }
+
+    dp1 = opendir(dirname1);
+    if (dp1 == NULL)
+    {
+        printf("Zadata putanja  za prvi direktorijum nije regularni direktorijum!\n");
+        exit(-1);
+    }
+
+    dirp1 = readdir(dp1);
+    int nadjen = 0; // inicijalno nije nadjen, pa je 0
+    while (dirp1 != NULL)
+    {
+        strcpy(path1, dirname1);
+        strcat(path1, "/");
+        strcat(path1, dirp1->d_name);
+
+        if (stat(path1, &statbuf1) < 0)
+        {
+            printf("Doslo je do greske pri ucitavanju informacija o datoteci %s!\n", path1);
+            exit(-1);
+        }
+
+        if (S_ISREG(statbuf1.st_mode))
+        {
+            dp2 = opendir(dirname2);
+            if (dp2 == NULL)
+            {
+                printf("Zadata putanja za drugi direktorijum nije regularni direktorijum!\n");
+                exit(-1);
+            }
+
+            dirp2 = readdir(dp2);
+            while (dirp2 != NULL)
+            {
+                strcpy(path2, dirname2);
+                strcat(path2, "/");
+                strcat(path2, dirp2->d_name);
+
+                if (stat(path2, &statbuf2) < 0)
+                {
+                    printf("Doslo je do greske pri ucitavanju informacija o datoteci %s!\n", path2);
+                    exit(-1);
+                }
+
+                if (strcmp(dirp1->d_name, dirp2->d_name) == 0)
+                {
+                    if (statbuf1.st_size == statbuf2.st_size)
+                    {
+                        printf("Datoteka %s se nalazi u oba direktorijuma.\n", dirp1->d_name);
+                        nadjen = 1;
+                        break;
+                    }
+                }
+                dirp2 = readdir(dp2);
+            }
+            closedir(dp2);
+        }
+        dirp1 = readdir(dp1);
+    }
+}
