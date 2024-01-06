@@ -1,0 +1,154 @@
+/*
+Koriscenjem programskog jezika C napisati Linux program koji u zadatom direktorijumu (kao ulazni argumment programa zadaje se apsolutna putanja do direktorijuma) i njegovim poddirektorijuma
+(maksimalno do nivoa 5) odredjuje i  stampa naziv najvece regularne datoteke.
+*/
+//moj kod ne radi, radi od chattgpt-a , dole je dat
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+#define MAX_NAME 1024
+
+void processdir(char* path,int level);
+
+int main(int argc,char* argv[])
+{
+    char dirname[MAX_NAME];
+    char path[MAX_NAME];
+    char maxpath[MAX_NAME];
+
+    struct stat statbuf;
+    DIR* dp;
+    struct dirent* dirp;
+    int count;
+    int size;
+    size=0;
+    
+    if(argc<2)
+    {
+        printf("Nema dovoljno ulaznih argumenata\n");
+        exit(-1);
+    }
+    strcpy(dirname,argv[1]);
+
+    if(stat(dirname,&statbuf)<0)
+    {
+        printf("Doslo je do greske pri unosu putanje\n");
+        exit(-1);
+    }
+    
+    if(!S_ISDIR(statbuf.st_mode))
+    {
+        printf("Uneti argument ne predstavlja putanju do direktorijuma\n");
+        exit(-1);
+    }
+
+    processdir(dirname,1);
+    return 0;
+}
+
+void processdir(char* path,int level)
+{
+    DIR* dp;
+    struct dirent* dirp;
+    char path1[MAX_NAME];
+    char maxpath[MAX_NAME];
+    char najvecaDat[100000];
+    struct stat statbuf;
+
+    dp=opendir(path);
+    if(dp==NULL)
+    {
+        printf("Greska pri otvaranju direktorijuma!\n");
+        exit(-1);
+    }
+    int size=0;
+    while((dirp=readdir(dp)) != NULL)
+    {
+        if(strcmp(dirp->d_name,".") == 0 || strcmp(dirp->d_name,"..") == 0)
+            continue;
+
+        strcpy(path1,path);
+        strcat(path1,"/");
+        strcat(path1,dirp->d_name);
+
+        stat(path1,&statbuf);
+        if(S_ISREG(statbuf.st_mode))
+        {
+            if(statbuf.st_size>size)
+            {
+                strcpy(maxpath,path);
+                size=statbuf.st_size;
+                //najvecaDat=dirp->d_name;
+            }
+
+            if(level < 5)
+                processdir(path1,level+1);
+        }
+    }
+    closedir(dp);
+    printf("Najveca datotek je %s\n",maxpath);
+} 
+/////////////////////////////
+//chat.gpt radi
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <string.h>
+
+void findLargestRegularFile(const char *dirPath) {
+    DIR *dir = opendir(dirPath);
+
+    if (!dir) {
+        perror("Error opening directory");
+        exit(EXIT_FAILURE);
+    }
+
+    struct dirent *entry;
+    struct stat fileStat;
+    char largestFile[256] = "";
+    off_t maxSize = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        char filePath[256];
+        snprintf(filePath, sizeof(filePath), "%s/%s", dirPath, entry->d_name);
+
+        if (stat(filePath, &fileStat) == -1) {
+            perror("Error getting file status");
+            exit(EXIT_FAILURE);
+        }
+
+        if (S_ISREG(fileStat.st_mode) && fileStat.st_size > maxSize) {
+            maxSize = fileStat.st_size;
+            strcpy(largestFile, entry->d_name);
+        }
+    }
+
+    closedir(dir);
+
+    if (maxSize > 0) {
+        printf("Najveća regularna datoteka: %s\n", largestFile);
+    } else {
+        printf("Nema regularnih datoteka u direktorijumu.\n");
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <directory_path>\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    findLargestRegularFile(argv[1]);
+
+    return 0;
+}
+
+
