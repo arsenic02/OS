@@ -1,0 +1,82 @@
+/*
+KOriscenjem programskog jezika C napisati Linux program koji za tekuci direktorijum generise statistiku tako sto  prebroajava: podfoldere, linkove, prazne regularne datoteke i regularne 
+datoteke cija je velicina veca od 0B. Na kraju program na ekranu stampa ovu statistiku (brojeve stavki po tipu).
+*/
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <string.h>
+
+#define VELICINA 255
+int main(int argc, char *argv[])
+{
+    char dirname[VELICINA];
+    char path[VELICINA];
+
+    struct stat statbuf;
+    DIR *dp;
+    struct dirent *dirp;
+
+    if (argc < 2)
+    {
+        printf("Nije unet odgovarajuci broj parametara!\n");
+        exit(-1);
+    }
+
+    strcpy(dirname, argv[1]);
+
+    if (stat(dirname, &statbuf) < 0)
+    {
+        printf("Doslo je do greske pri  ucitavanju putanje!\n");
+        exit(-1);
+    }
+    if (!S_ISDIR(statbuf.st_mode))
+    {
+        printf("Uneti argument ne predstavlja putanju do direktorijuma\n");
+        exit(-1);
+    }
+
+    dp=opendir(dirname);
+    if(dp==NULL)
+    {
+        printf("Zadat putanja nije regularni direktorijum!\n");
+        exit(-1);
+    }
+
+    dirp=readdir(dp);
+    int brPodfoldera,brLinkova,brPrRegDat,brRegDat;
+    brPodfoldera=brLinkova=brPrRegDat=brRegDat=0;
+    while(dirp!=NULL)
+    {
+      /*  if(strcmp(dirp->d_name,".") == 0 || strcmp(dirp->d_name,"..")==0)
+            continue;*/ //ovo mu smeta
+
+        strcpy(path, dirname);
+        strcat(path, "/");
+        strcat(path, dirp->d_name);
+        
+         stat(path, &statbuf);
+         if(S_ISREG(statbuf.st_mode) && statbuf.st_size>0)
+         {
+                brRegDat++;
+         }
+         else if(S_ISDIR(statbuf.st_mode) && statbuf.st_size>0)
+         {
+                brPodfoldera++;
+         }
+         else if(S_ISLNK(statbuf.st_mode) && statbuf.st_size>0)
+         {
+            brLinkova++;
+         }
+         else if(S_ISREG(statbuf.st_mode) && statbuf.st_size==0)
+         {
+                brPrRegDat++;
+         }
+         dirp = readdir(dp);
+    }
+    closedir(dp);
+    printf("Broj podfoldera: %d\nBroj linkova: %d\nBroj praznih regularnih datoteka: %d\nBroj reg. datoteka vecih od 0B: %d\n",brPodfoldera,brLinkova,brPrRegDat,brRegDat);
+}
