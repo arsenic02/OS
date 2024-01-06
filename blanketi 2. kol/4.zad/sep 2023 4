@@ -1,0 +1,81 @@
+/*
+Koriscenjem programskog jezika C napisati Linux program koji kao ulazne argumente prihvata apsolutnu putanju do nekog direktorijuma i parametre n i m. Program ima zadatak da u zadatom 
+direktorijumu iz n prvih regularnih datoteka odstampa m linija sa pocetka datoteke(pretpostaviti da je maksimalna duzina linije u datotecci 100 karaktera)
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <string.h>
+
+#define DUZINA_LINIJE 100
+
+int main(int argc, char* argv[]) {
+    int n, m;
+    char dirname[DUZINA_LINIJE];
+    char path[DUZINA_LINIJE];
+
+    struct stat statbuf;
+    DIR* dp;
+    struct dirent* dirp;
+
+    if (atoi(argv[2]) < 0 || atoi(argv[3]) < 0) {
+        printf("Drugi i treci argument moraju biti pozitivni brojevi (za n i m)\n");
+        exit(-1);
+    }
+
+    if (argc < 4) {
+        printf("Nije unet odgovarajuci broj parametara\n");
+        exit(-1);
+    }
+
+    n = atoi(argv[2]);
+    m = atoi(argv[3]);
+    strcpy(dirname, argv[1]);
+
+    if (stat(dirname, &statbuf) < 0) {
+        printf("Doslo je do greske pri ucitavanju unete putanje\n");
+        exit(-1);
+    }
+
+    if (!S_ISDIR(statbuf.st_mode)) {
+        printf("Uneti argument ne predstavlja putanju do direktorijuma\n");
+        exit(-1);
+    }
+
+    dp = opendir(dirname);
+    if (dp == NULL) {
+        printf("Greska kod otvaranja direktorijuma!\n");
+        exit(-1);
+    }
+
+    dirp = readdir(dp);
+    int i, j;
+    i = 0;
+    while (dirp != NULL && i < n) {
+        strcpy(path, dirname);
+        strcat(path, "/");
+        strcat(path, dirp->d_name);
+        char linija[DUZINA_LINIJE];
+        FILE* file = fopen(path, "r");
+
+        stat(path, &statbuf);
+
+        if (S_ISREG(statbuf.st_mode)) {
+            printf("Datoteka %s\n", path);
+            j = 1; // linije su u editorima numerisane od 1
+            while (j < m && fgets(linija, sizeof(linija), file) != NULL) {
+                printf("%d. linija: %s\n", j, linija);
+                j++;
+            }
+            fclose(file);
+        }
+        i++;
+        dirp = readdir(dp);
+    }
+
+    closedir(dp);
+    return 0;
+}
