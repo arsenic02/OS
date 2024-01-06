@@ -1,0 +1,94 @@
+/*
+Koriscenjem programskog jezika C napisati Linux/UNIX program koji kreira dodatni proces sa kojim komunicira dvosmerno koriscenjem jednog reda poruka. Proce roditelj iz datoteke cije je  ime
+prosledjeno kao argument komandne linije cita liniju po liniju teksta i svaku liniju salje procesu detetu u posebnoj poruci. Proces dete u svakoj primljenoj liniji prebrojava broj 
+pojavljivanja velikih slova abecede i procesu roditelju vraca kroz isti red poruka za svaku analiziranu liniju teksta kroz posebnu poruku redni broj linije i broj pojavljivanja velikih slova.
+Glavni program te podatke stampa na ekranu (redni broj linije i broj pojavljivanja velikih slova). Kada se analiziraju sve linije teksta iz datoteke glavni program na ekranu treba da 
+odstampa "KRAJ".
+*/
+
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <sys/wait.h>
+#include <string.h>
+
+#define MAX_PORUKA 255
+#define KEY 10001
+struct poruka
+{
+    int tip;
+    char tekst[MAX_PORUKA];
+    int brojLinije;
+    int brojVelikihSlova;
+};
+int main(int argc, char *argv[])
+{
+    int msgid;
+    msgid = msgget(KEY, IPC_CREAT | 0666);
+    if (fork() == 0)
+    {
+        // dete
+        struct poruka bafer;
+        msgrcv(msgid,&bafer,sizeof(bafer),1,0);//kad zamenim msgid sa key pokrece se ali ne bas najbolje
+
+        int i,l,velikaSlova;
+        l=bafer.brojLinije;
+
+        char s[MAX_PORUKA];
+        strcpy(s,bafer.tekst);
+        i=velikaSlova=0;
+
+        while(s[i]!='\0')
+        {
+            if(s[i]>='A' && s[i]<= 'Z')
+                velikaSlova++;
+            i++;
+        }
+        
+       printf("Dete prosledjuje vraca nazad main-u.\n");
+       // exit(1);
+       bafer.brojVelikihSlova=velikaSlova;
+       bafer.tip=0;
+       msgsnd(msgid,&bafer,sizeof(bafer),0);
+       wait(NULL);
+    }
+    else
+    {
+        // tatko
+        FILE *f = fopen(argv[1], "r");
+        int brL;
+        brL=1;
+        if (f==NULL)
+        {
+            printf("Greska pri citanju fajla!\n");
+        }
+        else
+        {
+            char linija[MAX_PORUKA];
+            struct poruka bafer;
+            while (!feof(f))
+            {
+                fgets(linija, sizeof(linija), f);
+                bafer.tip = 1;
+                bafer.brojLinije=brL;
+
+                strcpy(bafer.tekst, linija);
+                msgsnd(msgid, &bafer, sizeof(bafer), 0);
+                wait(NULL);
+
+                msgrcv(msgid,&bafer,sizeof(bafer),0,0);
+                int l=bafer.brojLinije;
+                int velikaSlova=bafer.brojVelikihSlova;
+
+                printf("Proces dete: %d. linija sadrzi %d velikih slova\n",l,velikaSlova);
+                brL++;
+            }
+            printf("KRAJ\n");
+            
+       }
+    }
+}
+
