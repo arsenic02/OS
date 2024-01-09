@@ -1,0 +1,108 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/ipc.h>
+#include <sys/types.h>
+#include <sys/msg.h>
+#include <sys/wait.h>
+#include <string.h>
+
+#define RED_PORUKA 10001
+#define MAX_PORUKA 256
+
+struct poruka
+{
+    long tip;
+    char tekst[MAX_PORUKA];
+};
+
+int main()
+{
+    int msgid;
+    msgid = msgget(RED_PORUKA, 0666 | IPC_CREAT);
+
+    FILE *f = fopen("poruka.txt", "r");
+    FILE *f2 = fopen("sredjeno.txt", "w");
+    if (f == NULL || f2 == NULL)
+    {
+        printf("Greska pri otvaranju fajla!\n");
+        exit(-1);
+    }
+
+    char linija[MAX_PORUKA];
+    struct poruka bafer;
+    int i = 1;
+    int pid1, pid2;
+
+    pid1 = fork();
+
+    while (fgets(linija, MAX_PORUKA, f) != NULL)
+    {
+        if (i % 2 == 0)
+        {
+            bafer.tip = 1;
+            sprintf(bafer.tekst, "%s", linija);
+            msgsnd(msgid, &bafer, sizeof(bafer), 0);
+        }
+        else
+        {
+            bafer.tip = 2;
+            sprintf(bafer.tekst, "%s", linija);
+            msgsnd(msgid, &bafer, sizeof(bafer), 0);
+        }
+        i++;
+    }
+
+    if (pid1 == 0)
+    {
+        // dete 1
+        struct poruka bafer;
+        msgrcv(msgid, &bafer, sizeof(bafer), 1, 0);
+        char parnaL[MAX_PORUKA];
+        strcpy(parnaL, bafer.tekst);
+        int i;
+        for (i = 0; parnaL[i] != '\0'; i++)
+        {
+            if (parnaL[i] >= 'A' && parnaL[i] <= 'Z')
+                parnaL[i] += 'a' - 'A';
+        }
+        fprintf(f2, "%s", parnaL);
+        fprintf(f2, "\n");
+    }
+    else
+    {
+        // roditelj
+        pid2 = fork();
+
+        if (pid2 == 0)
+        {
+            // dete2
+            struct poruka bafer;
+            msgrcv(msgid, &bafer, sizeof(bafer), 2, 0);
+            char neparnaL[MAX_PORUKA];
+            strcpy(neparnaL, bafer.tekst);
+            int i;
+            for (i = 0; neparnaL[i] != '\0'; i++)
+            {
+                if (neparnaL[i] >= 'a' && neparnaL[i] <= 'z')
+                    neparnaL[i] -= 'a' - 'A';
+            }
+            fprintf(f2, "%s", neparnaL);
+            fprintf(f2, "\n");
+        }
+        else
+        {
+            // roditelj
+            wait(NULL);
+            wait(NULL);
+        }
+    }
+
+    // Close files and remove message queue
+    fclose(f);
+    fclose(f2);
+    msgctl(msgid, IPC_RMID, NULL);
+
+    return 0;
+}
+
