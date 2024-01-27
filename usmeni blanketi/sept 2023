@@ -1,5 +1,5 @@
 /*
-Napisati monitor(Switch) koji konkurentnim procesima obezbedjuje funkcije za pristup zajednickoj promenljivoj u memoriji koji koriscenjem odgovarajucih funkcija monitora(3) treba da je strogo naizmenicno inkrementiraju, pomnoze sa X, i resetuju na 0 ako je vrednost veca od Y
+4. Napisati monitor(Switch) koji konkurentnim procesima obezbedjuje funkcije za pristup zajednickoj promenljivoj u memoriji koji koriscenjem odgovarajucih funkcija monitora(3) treba da je strogo naizmenicno inkrementiraju, pomnoze sa X, i resetuju na 0 ako je vrednost veca od Y
 
 
 */
@@ -106,3 +106,80 @@ int main() {
 
     return 0;
 }
+/*5.
+U sledecem programskom kodu tri procesa konkurisu za pristup 6 resursa A-F. napisati sekvencu izvrsenja naredbi ovih procesa koja uzrokuje uzajamno blokiranje.
+Izvrsiti izmene i programskom kodu procesa koriscenjem semafora i operacija semWait() i semSignal() tako da do  uzajamnog blokiranja ne moze da dodje
+*/
+#include <stdio.h>
+#include <pthread.h>
+#include <semaphore.h>
+
+sem_t A, B, C, D, E, F;
+
+void P0()
+{
+    while (true)
+    {
+        sem_wait(&A);
+        sem_wait(&B);
+        sem_wait(&C);
+        // critical region
+        // use A, B, C
+        sem_post(&A);
+        sem_post(&B);
+        sem_post(&C);
+    }
+}
+
+void P1()
+{
+    while (true)
+    {
+        sem_wait(&D);
+        sem_wait(&E);
+        sem_wait(&F);
+        // critical region
+        // use D, E, F
+        sem_post(&D);
+        sem_post(&E);
+        sem_post(&F);
+    }
+}
+
+void P2()
+{
+    while (true)
+    {
+        sem_wait(&C);
+        sem_wait(&F);
+        sem_wait(&D);
+        // critical region
+        // use C, F, D
+        sem_post(&C);
+        sem_post(&F);
+        sem_post(&D);
+    }
+}
+
+int main()
+{
+    sem_init(&A, 0, 1);
+    sem_init(&B, 0, 1);
+    sem_init(&C, 0, 1);
+    sem_init(&D, 0, 1);
+    sem_init(&E, 0, 1);
+    sem_init(&F, 0, 1);
+
+    // Create threads and start their execution...
+
+    // Don't forget to destroy semaphores at the end
+    sem_destroy(&A);
+    sem_destroy(&B);
+    sem_destroy(&C);
+    sem_destroy(&D);
+    sem_destroy(&E);
+    sem_destroy(&F);
+
+    return 0;
+}
+
