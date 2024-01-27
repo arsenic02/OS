@@ -1,0 +1,108 @@
+/*
+Napisati monitor(Switch) koji konkurentnim procesima obezbedjuje funkcije za pristup zajednickoj promenljivoj u memoriji koji koriscenjem odgovarajucih funkcija monitora(3) treba da je strogo naizmenicno inkrementiraju, pomnoze sa X, i resetuju na 0 ako je vrednost veca od Y
+
+
+*/
+#include <stdio.h>
+#include <pthread.h>
+
+typedef struct {
+    int sharedVariable;
+    int X;
+    int Y;
+    int turn;
+    pthread_mutex_t mutex;
+    pthread_cond_t condition;
+} Switch;
+
+void initSwitch(Switch* s, int initialValue, int X, int Y) {
+    s->sharedVariable = initialValue;
+    s->X = X;
+    s->Y = Y;
+    s->turn = 0;
+    pthread_mutex_init(&s->mutex, NULL);
+    pthread_cond_init(&s->condition, NULL);
+}
+
+void increment(Switch* s) {
+    pthread_mutex_lock(&s->mutex);
+
+    while (s->turn != 0) {
+        pthread_cond_wait(&s->condition, &s->mutex);
+    }
+
+    s->sharedVariable++;
+    printf("Increment: %d\n", s->sharedVariable);
+
+    s->turn = 1;
+    pthread_cond_broadcast(&s->condition);
+    pthread_mutex_unlock(&s->mutex);
+}
+
+void multiply(Switch* s) {
+    pthread_mutex_lock(&s->mutex);
+
+    while (s->turn != 1) {
+        pthread_cond_wait(&s->condition, &s->mutex);
+    }
+
+    s->sharedVariable *= s->X;
+    printf("Multiply: %d\n", s->sharedVariable);
+
+    s->turn = 2;
+    pthread_cond_broadcast(&s->condition);
+    pthread_mutex_unlock(&s->mutex);
+}
+
+void reset(Switch* s) {
+    pthread_mutex_lock(&s->mutex);
+
+    while (s->turn != 2) {
+        pthread_cond_wait(&s->condition, &s->mutex);
+    }
+
+    if (s->sharedVariable > s->Y) {
+        s->sharedVariable = 0;
+        printf("Reset: %d\n", s->sharedVariable);
+    }
+
+    s->turn = 0;
+    pthread_cond_broadcast(&s->condition);
+    pthread_mutex_unlock(&s->mutex);
+}
+
+void destroySwitch(Switch* s) {
+    pthread_mutex_destroy(&s->mutex);
+    pthread_cond_destroy(&s->condition);
+}
+
+// Testiranje monitora
+void* threadFunction(void* arg) {
+    Switch* s = (Switch*)arg;
+
+    for (int i = 0; i < 5; i++) {
+        increment(s);
+        multiply(s);
+        reset(s);
+    }
+
+    return NULL;
+}
+
+int main() {
+    Switch mySwitch;
+    initSwitch(&mySwitch, 0, 2, 10);
+
+    pthread_t threads[3];
+    for (int i = 0; i < 3; i++) {
+        pthread_create(&threads[i], NULL, threadFunction, &mySwitch);
+    }
+
+    for (int i = 0; i < 3; i++) {
+        pthread_join(threads[i], NULL);
+    }
+
+    destroySwitch(&mySwitch);
+
+    return 0;
+}
