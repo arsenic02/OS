@@ -1,0 +1,88 @@
+/*
+Napisati monitor cije se funkcije mogu koristiti za sinhronizaciju dva procesa u vremenu, tako da proces koji prvi stigne do odredjene instrukcije u programu mora da saceka drugi proces, da stigne do  odgovarajuce instrukcije nakon cega nastavljaju zajedno (konkurentno ili paralelno). Ilustrovati koriscenje funkcija ovog monitora u koviru ova 2 procesa?
+*/
+#include <stdio.h>
+#include <pthread.h>
+
+typedef struct {
+    int turn;
+    pthread_cond_t condition;
+    pthread_mutex_t mutex;
+} TimeSyncMonitor;
+
+void initTimeSyncMonitor(TimeSyncMonitor* monitor) {
+    monitor->turn = 1;  // Inicijalno postavljanje na vrednost koja omogućava prvom procesu da prođe
+    pthread_cond_init(&monitor->condition, NULL);
+    pthread_mutex_init(&monitor->mutex, NULL);
+}
+
+void waitForTurn(TimeSyncMonitor* monitor, int processNumber) {
+    pthread_mutex_lock(&monitor->mutex);
+    
+    while (monitor->turn != processNumber) {
+        pthread_cond_wait(&monitor->condition, &monitor->mutex);
+    }
+
+    pthread_mutex_unlock(&monitor->mutex);
+}
+
+void signalNextTurn(TimeSyncMonitor* monitor, int processNumber) {
+    pthread_mutex_lock(&monitor->mutex);
+    
+    monitor->turn = 3 - processNumber;  // Promena vrednosti turn kako bi sledeći proces mogao proći
+    pthread_cond_broadcast(&monitor->condition);
+
+    pthread_mutex_unlock(&monitor->mutex);
+}
+
+void destroyTimeSyncMonitor(TimeSyncMonitor* monitor) {
+    pthread_cond_destroy(&monitor->condition);
+    pthread_mutex_destroy(&monitor->mutex);
+}
+
+// Proces 1
+void* process1(void* arg) {
+    TimeSyncMonitor* monitor = (TimeSyncMonitor*)arg;
+
+    printf("Proces 1 - korak 1\n");
+    waitForTurn(monitor, 1);
+
+    // Ovde se nalazi kod koji treba izvršiti u sinhronizaciji
+
+    printf("Proces 1 - korak 2\n");
+    signalNextTurn(monitor, 1);
+
+    return NULL;
+}
+
+// Proces 2
+void* process2(void* arg) {
+    TimeSyncMonitor* monitor = (TimeSyncMonitor*)arg;
+
+    printf("Proces 2 - korak 1\n");
+    waitForTurn(monitor, 2);
+
+    // Ovde se nalazi kod koji treba izvršiti u sinhronizaciji
+
+    printf("Proces 2 - korak 2\n");
+    signalNextTurn(monitor, 2);
+
+    return NULL;
+}
+
+int main() {
+    pthread_t thread1, thread2;
+    TimeSyncMonitor monitor;
+
+    initTimeSyncMonitor(&monitor);
+
+    pthread_create(&thread1, NULL, process1, &monitor);
+    pthread_create(&thread2, NULL, process2, &monitor);
+
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+
+    destroyTimeSyncMonitor(&monitor);
+
+    return 0;
+}
